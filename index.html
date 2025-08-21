@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Informe de Bonos Editable con PDF Profesional</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         body {
@@ -118,8 +118,8 @@
                                 <td><input type="text" value="17-08"></td>
                             </tr>
                             <tr>
-                                <td><input type="number" value="1"></td>
-                                <td><input type="text" value="Bono turno feriado"></td>
+                                <td><input type="number" value=""></td>
+                                <td><input type="text" value="Bono tumo feriado"></td>
                                 <td><input type="text" value="15-08"></td>
                             </tr>
                         </tbody>
@@ -170,56 +170,65 @@
     <script>
         const { jsPDF } = window.jspdf;
 
-        function generatePdfForTechnician(elementToCapture) {
-            const techNameInput = elementToCapture.querySelector('.technician-name');
+        function generatePdfForTechnician(tecnicoDiv) {
+            const techNameInput = tecnicoDiv.querySelector('.technician-name');
             const techName = techNameInput ? techNameInput.value : 'informe';
             const techNameForFile = techName.replace(/ /g, '_');
             const reportMonth = document.getElementById('reportMonth').value;
             const logo = document.getElementById('logo');
-
-            // Usa html2canvas para capturar la tabla del técnico
-            html2canvas(elementToCapture, { scale: 2 }).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                
-                // Crea un nuevo documento PDF
-                const pdf = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-
-                // --- INICIO DEL ENCABEZADO DEL PDF ---
-                
-                // 1. Agregar el logo
-                // Las coordenadas y tamaños (en mm) se pueden ajustar
-                pdf.addImage(logo, 'PNG', 15, 10, 30, 15);
-
-                // 2. Agregar Título Principal
-                pdf.setFontSize(16);
-                pdf.setFont("helvetica", "bold");
-                pdf.text("INFORME DE TURNO REALIZADOS POR EL PERSONAL", pdf.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
-                
-                // 3. Agregar el Mes
-                pdf.setFontSize(12);
-                pdf.setFont("helvetica", "normal");
-                pdf.text(`Mes: ${reportMonth}`, pdf.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
-
-                // --- FIN DEL ENCABEZADO ---
-
-                // Calcular dimensiones de la imagen de la tabla para que quepa en el ancho
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const margin = 15; // Margen izquierdo y derecho
-                const contentWidth = pdfWidth - (margin * 2);
-                const contentHeight = (canvas.height * contentWidth) / canvas.width;
-                
-                // 4. Agregar la imagen de la tabla del técnico
-                // Se agrega con un margen superior para no solapar el encabezado
-                const topMarginForTable = 65; 
-                pdf.addImage(imgData, 'PNG', margin, topMarginForTable, contentWidth, contentHeight);
-                
-                // Descargar el PDF
-                pdf.save(`Informe_Bonos_${techNameForFile}.pdf`);
+            
+            // Crea un nuevo documento PDF
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
             });
+
+            // --- INICIO DEL ENCABEZADO DEL PDF ---
+            
+            // 1. Agregar el logo
+            pdf.addImage(logo, 'PNG', 15, 10, 30, 15);
+
+            // 2. Agregar Título Principal
+            pdf.setFontSize(16);
+            pdf.setFont("helvetica", "bold");
+            pdf.text("INFORME DE TURNO REALIZADOS POR EL PERSONAL", pdf.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+            
+            // 3. Agregar el Mes
+            pdf.setFontSize(12);
+            pdf.setFont("helvetica", "normal");
+            pdf.text(`Mes: ${reportMonth}`, pdf.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
+
+            // 4. Agregar Nombre del Técnico
+             pdf.setFontSize(12);
+             pdf.setFont("helvetica", "bold");
+             pdf.text(`Nombre del técnico: ${techName}`, 15, 65);
+
+            // --- FIN DEL ENCABEZADO ---
+
+            // 5. Agregar la tabla usando jsPDF-AutoTable
+            const tableElement = tecnicoDiv.querySelector('table');
+            pdf.autoTable({
+                html: tableElement,
+                startY: 70, // Posición vertical donde comienza la tabla (debajo del encabezado)
+                theme: 'grid', // Estilo de la tabla
+                headStyles: {
+                    fillColor: [230, 230, 230], // Color de fondo para la cabecera
+                    textColor: [33, 33, 33]     // Color de texto para la cabecera
+                },
+                // Hook para leer los datos directamente de los inputs
+                didParseCell: function(data) {
+                    if (data.cell.raw && data.cell.raw.nodeName === 'TD') {
+                        const input = data.cell.raw.querySelector('input');
+                        if (input) {
+                            data.cell.text = input.value;
+                        }
+                    }
+                }
+            });
+            
+            // Descargar el PDF
+            pdf.save(`Informe_Bonos_${techNameForFile}.pdf`);
         }
 
         const techniciansContainer = document.getElementById('techniciansContainer');
@@ -227,8 +236,9 @@
         // Event listener para los botones de descarga
         techniciansContainer.addEventListener('click', function(event) {
             if (event.target.classList.contains('download-btn')) {
-                const infoContainer = event.target.closest('.tecnico').querySelector('.info-container');
-                generatePdfForTechnician(infoContainer);
+                // Ahora pasamos todo el div del técnico a la función
+                const tecnicoDiv = event.target.closest('.tecnico');
+                generatePdfForTechnician(tecnicoDiv);
             }
         });
 
@@ -239,7 +249,7 @@
             newTechnicianDiv.innerHTML = `
                 <div class="info-container">
                     <h3 class="nombre-tecnico">Nombre del técnico: <input type="text" placeholder="Ingrese nombre aquí" class="technician-name"></h3>
-                    <table>
+                    <table id="new-tech-table">
                         <thead>
                             <tr>
                                 <th>Cantidad</th>
