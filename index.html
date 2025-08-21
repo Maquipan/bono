@@ -212,13 +212,13 @@
             
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-            pdf.addImage(logo, 'PNG', 15, 10, 30, 15);
+            pdf.addImage(logo, 'PNG', 15, 15, 30, 15);
             pdf.setFontSize(16);
             pdf.setFont("helvetica", "bold");
             pdf.text("INFORME DE TURNO REALIZADOS POR EL PERSONAL", pdf.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
             pdf.setFontSize(12);
             pdf.setFont("helvetica", "normal");
-            pdf.text(`Mes: ${reportMonth}`, pdf.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
+            pdf.text(`Mes: ${reportMonth}`, pdf.internal.pageSize.getWidth() / 2, 48, { align: 'center' });
             pdf.setFontSize(12);
             pdf.setFont("helvetica", "bold");
             pdf.text(`Nombre del técnico: ${techName}`, 15, 65);
@@ -257,26 +257,23 @@
             technicians.forEach((tecnicoDiv, index) => {
                 const isFirstOnPage = index % techniciansPerPage === 0;
 
-                // Si es el primer técnico de una nueva página, agrega la página (si no es la primerísima) y el encabezado
                 if (isFirstOnPage) {
                     if (index !== 0) {
                         pdf.addPage();
                     }
-                    // Dibuja el encabezado principal en la página actual
-                    pdf.addImage(logo, 'PNG', 15, 10, 30, 15);
+                    // Dibuja el encabezado principal con coordenadas corregidas
+                    pdf.addImage(logo, 'PNG', 15, 15, 30, 15);
                     pdf.setFontSize(16);
                     pdf.setFont("helvetica", "bold");
-                    pdf.text("INFORME DE TURNO REALIZADOS POR EL PERSONAL", pdf.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+                    pdf.text("INFORME DE TURNO REALIZADOS POR EL PERSONAL", pdf.internal.pageSize.getWidth() / 2, 38, { align: 'center' });
                     pdf.setFontSize(12);
                     pdf.setFont("helvetica", "normal");
-                    pdf.text(`Mes: ${reportMonth}`, pdf.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
+                    pdf.text(`Mes: ${reportMonth}`, pdf.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
                 }
 
-                // Calcula la posición Y para el bloque actual del técnico
                 let startY;
-                // Si es el primero en la página, la posición es fija. Si no, es relativa al último elemento.
                 if (isFirstOnPage) {
-                    startY = 40; 
+                    startY = 55; // Posición de inicio más baja para el primer técnico
                 } else {
                     startY = pdf.autoTable.previous.finalY + 10;
                 }
