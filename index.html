@@ -112,86 +112,7 @@
         <h2>Mes: <input id="reportMonth" type="text" value="Julio – Agosto 2025" style="width: 250px; text-align:center; font-size:1.2em;"></h2>
 
         <div id="techniciansContainer">
-            <div class="tecnico">
-                <div class="info-container">
-                    <h3 class="nombre-tecnico">Nombre del técnico: <input type="text" value="Juan Perez" class="technician-name"></h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Cantidad</th>
-                                <th>Nombre Bonos para considerar</th>
-                                <th>Fecha</th>
-                                <th>Quitar</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><input type="number" value="2"></td>
-                                <td><input type="text" value="Bonos nocturnos"></td>
-                                <td><input type="text" value="11-08 y 23-08"></td>
-                                <td><button class="remove-bonus-btn">X</button></td>
-                            </tr>
-                            <tr>
-                                <td><input type="number" value="1"></td>
-                                <td><input type="text" value="Bono turno sábado"></td>
-                                <td><input type="text" value="17-08"></td>
-                                <td><button class="remove-bonus-btn">X</button></td>
-                            </tr>
-                            <tr>
-                                <td><input type="number" value=""></td>
-                                <td><input type="text" value="Bono tumo feriado"></td>
-                                <td><input type="text" value="15-08"></td>
-                                <td><button class="remove-bonus-btn">X</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="tecnico-controls">
-                    <button class="add-bonus-btn">+ Agregar Bono</button>
-                    <button class="download-btn">Descargar PDF</button>
-                </div>
-            </div>
-
-            <div class="tecnico">
-                <div class="info-container">
-                    <h3 class="nombre-tecnico">Nombre del técnico: <input type="text" value="Alex Rodriguez" class="technician-name"></h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Cantidad</th>
-                                <th>Nombre Bonos para considerar</th>
-                                <th>Fecha</th>
-                                <th>Quitar</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><input type="number" value="1"></td>
-                                <td><input type="text" value="Bonos nocturnos"></td>
-                                <td><input type="text" value="03-08 y 10-08"></td>
-                                <td><button class="remove-bonus-btn">X</button></td>
-                            </tr>
-                            <tr>
-                                <td><input type="number" value="2"></td>
-                                <td><input type="text" value="Bono turno sábado"></td>
-                                <td><input type="text" value="17-08 y 26-08"></td>
-                                <td><button class="remove-bonus-btn">X</button></td>
-                            </tr>
-                            <tr>
-                                <td><input type="number" value="1"></td>
-                                <td><input type="text" value="Bono feriado"></td>
-                                <td><input type="text" value="15-08"></td>
-                                <td><button class="remove-bonus-btn">X</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="tecnico-controls">
-                    <button class="add-bonus-btn">+ Agregar Bono</button>
-                    <button class="download-btn">Descargar PDF</button>
-                </div>
-            </div>
-        </div>
+             </div>
 
         <div class="main-controls">
             <button id="addTechnicianBtn" class="add-btn">Agregar más técnicos</button>
@@ -241,7 +162,7 @@
             pdf.save(`Informe_Bonos_${techNameForFile}.pdf`);
         }
 
-        // --- FUNCIÓN PARA PDF COMBINADO (CORREGIDA) ---
+        // --- FUNCIÓN PARA PDF COMBINADO (CORREGIDA CON ALTURA FIJA) ---
         function generateCombinedPdf() {
             const technicians = document.querySelectorAll('.tecnico');
             if (technicians.length === 0) {
@@ -253,6 +174,13 @@
             const logo = document.getElementById('logo');
             const reportMonth = document.getElementById('reportMonth').value;
             const techniciansPerPage = 3;
+            
+            // Definir espacios en la página
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const headerHeight = 55; // Espacio superior para el encabezado
+            const footerMargin = 20;  // Margen inferior
+            const usableHeight = pageHeight - headerHeight - footerMargin;
+            const slotHeight = usableHeight / techniciansPerPage; // Altura fija para cada bloque de técnico
 
             technicians.forEach((tecnicoDiv, index) => {
                 const isFirstOnPage = index % techniciansPerPage === 0;
@@ -261,7 +189,7 @@
                     if (index !== 0) {
                         pdf.addPage();
                     }
-                    // Dibuja el encabezado principal con coordenadas corregidas
+                    // Dibuja el encabezado principal en la página actual
                     pdf.addImage(logo, 'PNG', 15, 15, 30, 15);
                     pdf.setFontSize(16);
                     pdf.setFont("helvetica", "bold");
@@ -271,12 +199,9 @@
                     pdf.text(`Mes: ${reportMonth}`, pdf.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
                 }
 
-                let startY;
-                if (isFirstOnPage) {
-                    startY = 55; // Posición de inicio más baja para el primer técnico
-                } else {
-                    startY = pdf.autoTable.previous.finalY + 10;
-                }
+                // Calcula la posición Y de inicio para el bloque actual usando la altura fija
+                const positionOnPage = index % techniciansPerPage;
+                const startY = headerHeight + (positionOnPage * slotHeight);
                 
                 const techName = tecnicoDiv.querySelector('.technician-name').value;
                 pdf.setFontSize(12);
@@ -328,13 +253,26 @@
             }
         });
 
-        // Event listener para botones principales
-        document.getElementById('addTechnicianBtn').addEventListener('click', function() {
+        // --- LÓGICA PARA CREAR Y AGREGAR TÉCNICOS ---
+        function createTechnicianBlock(name, bonuses) {
             const newTechnicianDiv = document.createElement('div');
             newTechnicianDiv.className = 'tecnico';
+            
+            let bonusRowsHTML = '';
+            bonuses.forEach(bonus => {
+                bonusRowsHTML += `
+                    <tr>
+                        <td><input type="number" value="${bonus.cantidad}"></td>
+                        <td><input type="text" value="${bonus.nombre}"></td>
+                        <td><input type="text" value="${bonus.fecha}"></td>
+                        <td><button class="remove-bonus-btn">X</button></td>
+                    </tr>
+                `;
+            });
+
             newTechnicianDiv.innerHTML = `
                 <div class="info-container">
-                    <h3 class="nombre-tecnico">Nombre del técnico: <input type="text" placeholder="Ingrese nombre aquí" class="technician-name"></h3>
+                    <h3 class="nombre-tecnico">Nombre del técnico: <input type="text" value="${name}" class="technician-name"></h3>
                     <table>
                         <thead>
                             <tr>
@@ -345,12 +283,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td><input type="number" value="1"></td>
-                                <td><input type="text" value="Bonos nocturnos"></td>
-                                <td><input type="text" placeholder="Ingrese fechas"></td>
-                                <td><button class="remove-bonus-btn">X</button></td>
-                            </tr>
+                            ${bonusRowsHTML}
                         </tbody>
                     </table>
                 </div>
@@ -360,9 +293,47 @@
                 </div>
             `;
             techniciansContainer.appendChild(newTechnicianDiv);
+        }
+
+        document.getElementById('addTechnicianBtn').addEventListener('click', function() {
+            createTechnicianBlock('', [{ cantidad: 1, nombre: 'Nuevo Bono', fecha: '' }]);
+        });
+        
+        document.getElementById('downloadAllBtn').addEventListener('click', generateCombinedPdf);
+
+        // Cargar los datos iniciales de la imagen
+        window.addEventListener('load', function() {
+            const initialData = [
+                {
+                    name: 'Marcelo Rivero',
+                    bonuses: [
+                        { cantidad: 2, nombre: 'Bono turno sábado', fecha: '2, 16 de Agosto' },
+                        { cantidad: 2, nombre: 'Bono turno Domingo', fecha: '3, 17 de Agosto' },
+                        { cantidad: 1, nombre: 'Bono turno feriado', fecha: '15 de Agosto' }
+                    ]
+                },
+                {
+                    name: 'Sergio Ibañez',
+                    bonuses: [
+                        { cantidad: 2, nombre: 'Bono turno sábado', fecha: '26 de Julio - 9 de Agosto' },
+                        { cantidad: 2, nombre: 'Bono turno Domingo', fecha: '27 de Julio - 10 de Agosto' }
+                    ]
+                }
+            ];
+
+            const firstTechnicianBonuses = [
+                 { cantidad: 4, nombre: 'Bono turno sábado', fecha: '26 de Julio - 2, 9, 16 de Agosto' },
+                 { cantidad: 1, nombre: 'Bono turno feriado', fecha: '15 de Agosto' },
+                 { cantidad: 1, nombre: 'Bono turno Domingo', fecha: '3 de Agosto' }
+            ];
+
+            // Crear el primer técnico sin nombre específico en la data
+            createTechnicianBlock('Primer Técnico (Editable)', firstTechnicianBonuses);
+
+
+            initialData.forEach(tech => createTechnicianBlock(tech.name, tech.bonuses));
         });
 
-        document.getElementById('downloadAllBtn').addEventListener('click', generateCombinedPdf);
     </script>
 </body>
 </html>
