@@ -38,6 +38,7 @@
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
+            vertical-align: middle;
         }
         th {
             background-color: #f2f2f2;
@@ -92,6 +93,15 @@
         .download-btn:hover {
             background-color: #218838;
         }
+        .remove-bonus-btn {
+            background-color: #dc3545; /* Rojo */
+            padding: 5px 10px;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+        .remove-bonus-btn:hover {
+            background-color: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -111,6 +121,7 @@
                                 <th>Cantidad</th>
                                 <th>Nombre Bonos para considerar</th>
                                 <th>Fecha</th>
+                                <th>Quitar</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -118,16 +129,19 @@
                                 <td><input type="number" value="2"></td>
                                 <td><input type="text" value="Bonos nocturnos"></td>
                                 <td><input type="text" value="11-08 y 23-08"></td>
+                                <td><button class="remove-bonus-btn">X</button></td>
                             </tr>
                             <tr>
                                 <td><input type="number" value="1"></td>
                                 <td><input type="text" value="Bono turno sábado"></td>
                                 <td><input type="text" value="17-08"></td>
+                                <td><button class="remove-bonus-btn">X</button></td>
                             </tr>
                             <tr>
                                 <td><input type="number" value=""></td>
                                 <td><input type="text" value="Bono tumo feriado"></td>
                                 <td><input type="text" value="15-08"></td>
+                                <td><button class="remove-bonus-btn">X</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -147,6 +161,7 @@
                                 <th>Cantidad</th>
                                 <th>Nombre Bonos para considerar</th>
                                 <th>Fecha</th>
+                                <th>Quitar</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -154,16 +169,19 @@
                                 <td><input type="number" value="1"></td>
                                 <td><input type="text" value="Bonos nocturnos"></td>
                                 <td><input type="text" value="03-08 y 10-08"></td>
+                                <td><button class="remove-bonus-btn">X</button></td>
                             </tr>
                             <tr>
                                 <td><input type="number" value="2"></td>
                                 <td><input type="text" value="Bono turno sábado"></td>
                                 <td><input type="text" value="17-08 y 26-08"></td>
+                                <td><button class="remove-bonus-btn">X</button></td>
                             </tr>
                             <tr>
                                 <td><input type="number" value="1"></td>
-                                <td><input type="text" value="Bono turno feriado"></td>
+                                <td><input type="text" value="Bono feriado"></td>
                                 <td><input type="text" value="15-08"></td>
+                                <td><button class="remove-bonus-btn">X</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -186,7 +204,6 @@
 
         // --- FUNCIÓN PARA PDF INDIVIDUAL ---
         function generatePdfForTechnician(tecnicoDiv) {
-            // ... (Esta función se mantiene igual que antes)
             const techNameInput = tecnicoDiv.querySelector('.technician-name');
             const techName = techNameInput ? techNameInput.value : 'informe';
             const techNameForFile = techName.replace(/ /g, '_');
@@ -212,12 +229,11 @@
                 startY: 70,
                 theme: 'grid',
                 headStyles: { fillColor: [230, 230, 230], textColor: [33, 33, 33] },
+                columns: [ { dataKey: 0 }, { dataKey: 1 }, { dataKey: 2 } ],
                 didParseCell: function(data) {
-                    if (data.cell.raw && data.cell.raw.nodeName === 'TD') {
+                    if (data.cell.raw.nodeName === 'TD') {
                         const input = data.cell.raw.querySelector('input');
-                        if (input) {
-                            data.cell.text = input.value;
-                        }
+                        if (input) data.cell.text = input.value;
                     }
                 }
             });
@@ -225,7 +241,7 @@
             pdf.save(`Informe_Bonos_${techNameForFile}.pdf`);
         }
 
-        // --- NUEVA FUNCIÓN PARA PDF COMBINADO ---
+        // --- FUNCIÓN PARA PDF COMBINADO (CORREGIDA) ---
         function generateCombinedPdf() {
             const technicians = document.querySelectorAll('.tecnico');
             if (technicians.length === 0) {
@@ -236,31 +252,47 @@
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             const logo = document.getElementById('logo');
             const reportMonth = document.getElementById('reportMonth').value;
-            let yPosition = 0; // Posición vertical para el siguiente elemento
+            const techniciansPerPage = 3;
 
             technicians.forEach((tecnicoDiv, index) => {
-                // Cada 3 técnicos, se crea una nueva página
-                if (index > 0 && index % 3 === 0) {
-                    pdf.addPage();
-                    yPosition = 0;
+                const isFirstOnPage = index % techniciansPerPage === 0;
+
+                // Si es el primer técnico de una nueva página, agrega la página (si no es la primerísima) y el encabezado
+                if (isFirstOnPage) {
+                    if (index !== 0) {
+                        pdf.addPage();
+                    }
+                    // Dibuja el encabezado principal en la página actual
+                    pdf.addImage(logo, 'PNG', 15, 10, 30, 15);
+                    pdf.setFontSize(16);
+                    pdf.setFont("helvetica", "bold");
+                    pdf.text("INFORME DE TURNO REALIZADOS POR EL PERSONAL", pdf.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+                    pdf.setFontSize(12);
+                    pdf.setFont("helvetica", "normal");
+                    pdf.text(`Mes: ${reportMonth}`, pdf.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
+                }
+
+                // Calcula la posición Y para el bloque actual del técnico
+                let startY;
+                // Si es el primero en la página, la posición es fija. Si no, es relativa al último elemento.
+                if (isFirstOnPage) {
+                    startY = 40; 
+                } else {
+                    startY = pdf.autoTable.previous.finalY + 10;
                 }
                 
-                // Si no es el primer técnico en la página, añade un espacio
-                yPosition = (index % 3 === 0) ? 10 : yPosition + 15;
-
-                // --- DIBUJA EL BLOQUE DE CADA TÉCNICO ---
                 const techName = tecnicoDiv.querySelector('.technician-name').value;
                 pdf.setFontSize(12);
                 pdf.setFont("helvetica", "bold");
-                pdf.text(`Nombre del técnico: ${techName}`, 15, yPosition);
-                yPosition += 5;
-
+                pdf.text(`Nombre del técnico: ${techName}`, 15, startY);
+                
                 const tableElement = tecnicoDiv.querySelector('table');
                 pdf.autoTable({
                     html: tableElement,
-                    startY: yPosition,
+                    startY: startY + 5,
                     theme: 'grid',
                     headStyles: { fillColor: [230, 230, 230], textColor: [33, 33, 33] },
+                    columns: [ { dataKey: 0 }, { dataKey: 1 }, { dataKey: 2 } ],
                     didParseCell: function(data) {
                         if (data.cell.raw.nodeName === 'TD') {
                             const input = data.cell.raw.querySelector('input');
@@ -268,52 +300,39 @@
                         }
                     }
                 });
-                
-                // Actualiza la posición 'y' para el siguiente técnico en la misma página
-                yPosition = pdf.autoTable.previous.finalY;
             });
             
-            // Agrega el encabezado y logo en cada página
-            const pageCount = pdf.internal.getNumberOfPages();
-            for(let i = 1; i <= pageCount; i++) {
-                pdf.setPage(i);
-                pdf.addImage(logo, 'PNG', 15, 10, 30, 15);
-                pdf.setFontSize(16);
-                pdf.setFont("helvetica", "bold");
-                pdf.text("INFORME DE TURNO REALIZADOS POR EL PERSONAL", pdf.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
-                pdf.setFontSize(12);
-                pdf.setFont("helvetica", "normal");
-                pdf.text(`Mes: ${reportMonth}`, pdf.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
-            }
-
             pdf.save(`Informe_General_Bonos.pdf`);
         }
 
 
         const techniciansContainer = document.getElementById('techniciansContainer');
 
-        // Event listener para botones DENTRO de cada técnico
+        // Event listener central para todos los botones
         techniciansContainer.addEventListener('click', function(event) {
-            if (event.target.classList.contains('download-btn')) {
-                const tecnicoDiv = event.target.closest('.tecnico');
+            const target = event.target;
+            if (target.classList.contains('download-btn')) {
+                const tecnicoDiv = target.closest('.tecnico');
                 generatePdfForTechnician(tecnicoDiv);
             }
-            if (event.target.classList.contains('add-bonus-btn')) {
-                const tecnicoDiv = event.target.closest('.tecnico');
-                const tableBody = tecnicoDiv.querySelector('table tbody');
+            if (target.classList.contains('add-bonus-btn')) {
+                const tableBody = target.closest('.tecnico').querySelector('table tbody');
                 const newRow = document.createElement('tr');
                 newRow.innerHTML = `
                     <td><input type="number" value="1"></td>
                     <td><input type="text" placeholder="Descripción del bono"></td>
                     <td><input type="text" placeholder="Fecha(s)"></td>
+                    <td><button class="remove-bonus-btn">X</button></td>
                 `;
                 tableBody.appendChild(newRow);
             }
+            if (target.classList.contains('remove-bonus-btn')) {
+                target.closest('tr')?.remove();
+            }
         });
 
-        // Event listener para botones en los controles PRINCIPALES
+        // Event listener para botones principales
         document.getElementById('addTechnicianBtn').addEventListener('click', function() {
-            // ... (Esta función se mantiene igual que antes)
             const newTechnicianDiv = document.createElement('div');
             newTechnicianDiv.className = 'tecnico';
             newTechnicianDiv.innerHTML = `
@@ -325,6 +344,7 @@
                                 <th>Cantidad</th>
                                 <th>Nombre Bonos para considerar</th>
                                 <th>Fecha</th>
+                                <th>Quitar</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -332,6 +352,7 @@
                                 <td><input type="number" value="1"></td>
                                 <td><input type="text" value="Bonos nocturnos"></td>
                                 <td><input type="text" placeholder="Ingrese fechas"></td>
+                                <td><button class="remove-bonus-btn">X</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -345,8 +366,6 @@
         });
 
         document.getElementById('downloadAllBtn').addEventListener('click', generateCombinedPdf);
-
     </script>
-
 </body>
 </html>
